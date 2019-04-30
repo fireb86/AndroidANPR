@@ -17,11 +17,9 @@ import org.opencv.imgproc.Imgproc
 import org.opencv.core.MatOfPoint
 import org.opencv.core.MatOfPoint2f
 import org.opencv.core.Core
-
-
-
-
-
+import android.R.attr.radius
+import org.opencv.core.Scalar
+import org.opencv.core.Mat
 
 
 class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
@@ -47,7 +45,9 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 
         Imgproc.Sobel(img, img, -1, 1, 0)
 
-        val se = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, Size(32.0, 8.0))
+        Imgproc.threshold(img, img, 127.0, 255.0, Imgproc.THRESH_BINARY+Imgproc.THRESH_OTSU)
+
+        val se = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, Size(32.0, 8.0))//TODO custom values
 
         Imgproc.morphologyEx(img, img, Imgproc.MORPH_CLOSE, se)
 
@@ -59,23 +59,39 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 
         try {
 
-            for (cnt in contours) {
-                val points = MatOfPoint2f()
-                Core.findNonZero(cnt, points)
+//            val contoursApprox = mutableListOf<MatOfPoint>()
+//            for (poly in contours) {
+//                contoursApprox.add(MatOfPoint(*poly.toArray()))
+//            }
+//            for (i in 0 until contours.size) {
+////                Imgproc.drawContours(img, contoursApprox, i, Scalar(255.0, 0.0, 0.0, 1.0), 2)
+//                Imgproc.drawContours(rgba, contoursApprox, i, Scalar(255.0, 0.0, 0.0, 1.0), 2)
+//            }
 
-                val rotatedRect = Imgproc.minAreaRect(points)
-                val box = MatOfPoint2f()
-                Imgproc.boxPoints(rotatedRect, box)
-//            Imgproc.drawContours(rgba, [cnt], 0, (255, 0, 0), 2)
-//            Imgproc.drawContours(rgba, [box], 0, (0, 0, 255), 2)
+            for (cnt in contours) {
+                val cntApprox = MatOfPoint2f(*cnt.toArray())
+                val rotatedRect = Imgproc.minAreaRect(cntApprox)
+
+                val vertices = arrayOfNulls<Point>(4)
+                rotatedRect.points(vertices)
+
+                if(rotatedRect.size.width * rotatedRect.size.height > 15000) continue //TODO area variable or fixed source img size
+                if((rotatedRect.angle > -75 && rotatedRect.angle < -15) || (rotatedRect.angle > 15 || rotatedRect.angle < 75)) continue
+
+//                val box = Imgproc.boxPoints()
+
+                rotatedRect.points(vertices)
+                for (j in 0..3) {
+                    Imgproc.line(rgba, vertices[j], vertices[(j + 1) % 4], Scalar(255.0, 0.0, 0.0, 1.0), 2)
+                }
             }
 
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        return img
-//        return rgba
+//        return img
+        return rgba
     }
 
     private val mLoaderCallback = object : BaseLoaderCallback(this) {
