@@ -14,38 +14,40 @@ import org.opencv.android.LoaderCallbackInterface
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
-import org.opencv.core.MatOfPoint
-import org.opencv.core.MatOfPoint2f
-import org.opencv.core.Core
-import android.R.attr.radius
-import org.opencv.core.Scalar
 import org.opencv.core.Mat
+
+
 
 
 class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
 
-    override fun onCameraViewStarted(width: Int, height: Int) {
+    private var rgba : Mat? = null
+    private var img : Mat? = null
 
+    override fun onCameraViewStarted(width: Int, height: Int) {
+        rgba = Mat()
+        img = Mat()
     }
 
     override fun onCameraViewStopped() {
-
+        rgba?.release()
+        img?.release()
     }
 
     override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat {
 
-        val rgba = inputFrame.rgba()
-        val img = Mat()
+        rgba = inputFrame.rgba()
+        img = inputFrame.gray()
 
 //        Imgproc.circle(rgba, Point(100.0, 100.0), 0, Scalar(255.0, 0.0, 0.0, 1.0), 5)
 
-        Imgproc.cvtColor(rgba, img, Imgproc.COLOR_BGR2GRAY)
+//        Imgproc.cvtColor(rgba, img, Imgproc.COLOR_BGR2GRAY)
 
         Imgproc.GaussianBlur(img, img, Size(5.0, 5.0), 0.0)
 
         Imgproc.Sobel(img, img, -1, 1, 0)
 
-        Imgproc.threshold(img, img, 127.0, 255.0, Imgproc.THRESH_BINARY+Imgproc.THRESH_OTSU)
+        Imgproc.threshold(img, img, 127.0, 255.0, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU)
 
         val se = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, Size(32.0, 8.0))//TODO custom values
 
@@ -72,14 +74,14 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
                 val cntApprox = MatOfPoint2f(*cnt.toArray())
                 val rotatedRect = Imgproc.minAreaRect(cntApprox)
 
+                val area = rotatedRect.size.width * rotatedRect.size.height
+                if (area < 500 || area > 15000) continue //TODO area variable or fixed source img size
+                if ((rotatedRect.angle > -75 && rotatedRect.angle < -15) ||
+                    (rotatedRect.angle > 15 && rotatedRect.angle < 75)
+                ) continue
+
                 val vertices = arrayOfNulls<Point>(4)
                 rotatedRect.points(vertices)
-
-                if(rotatedRect.size.width * rotatedRect.size.height > 15000) continue //TODO area variable or fixed source img size
-                if((rotatedRect.angle > -75 && rotatedRect.angle < -15) || (rotatedRect.angle > 15 || rotatedRect.angle < 75)) continue
-
-//                val box = Imgproc.boxPoints()
-
                 rotatedRect.points(vertices)
                 for (j in 0..3) {
                     Imgproc.line(rgba, vertices[j], vertices[(j + 1) % 4], Scalar(255.0, 0.0, 0.0, 1.0), 2)
@@ -91,7 +93,7 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
         }
 
 //        return img
-        return rgba
+        return rgba!!
     }
 
     private val mLoaderCallback = object : BaseLoaderCallback(this) {
