@@ -17,12 +17,10 @@ import org.opencv.imgproc.Imgproc
 import org.opencv.core.Mat
 
 
-
-
 class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
 
-    private var rgba : Mat? = null
-    private var img : Mat? = null
+    private var rgba: Mat? = null
+    private var img: Mat? = null
 
     override fun onCameraViewStarted(width: Int, height: Int) {
         rgba = Mat()
@@ -72,13 +70,14 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 
             for (cnt in contours) {
                 val cntApprox = MatOfPoint2f(*cnt.toArray())
-                val rotatedRect = Imgproc.minAreaRect(cntApprox)
+                val rotatedRect = normalizeRect(Imgproc.minAreaRect(cntApprox))
+
+                if (rotatedRect.size.width < rotatedRect.size.height) continue
+
+                if (rotatedRect.angle < -30 || rotatedRect.angle > 30) continue
 
                 val area = rotatedRect.size.width * rotatedRect.size.height
-                if (area < 500 || area > 15000) continue //TODO area variable or fixed source img size
-                if ((rotatedRect.angle > -75 && rotatedRect.angle < -15) ||
-                    (rotatedRect.angle > 15 && rotatedRect.angle < 75)
-                ) continue
+                if (area < 1000 || area > 30000) continue //TODO area variable or fixed source img size
 
                 val vertices = arrayOfNulls<Point>(4)
                 rotatedRect.points(vertices)
@@ -94,6 +93,19 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 
 //        return img
         return rgba!!
+    }
+
+    private fun normalizeRect(rect: RotatedRect): RotatedRect {
+        if (rect.size.height < rect.size.width && rect.angle < -45) {
+            val rect2 = RotatedRect()
+            rect2.size.width = rect.size.height
+            rect2.size.height = rect.size.width
+            rect2.angle = rect.angle + 90
+            rect2.center = rect.center
+            return rect2
+        }
+
+        return rect
     }
 
     private val mLoaderCallback = object : BaseLoaderCallback(this) {
