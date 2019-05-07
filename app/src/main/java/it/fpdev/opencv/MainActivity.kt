@@ -16,7 +16,6 @@ import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
 import org.opencv.core.Mat
 
-
 class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
 
     private var rgba: Mat? = null
@@ -37,56 +36,36 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
         rgba = inputFrame.rgba()
         img = inputFrame.gray()
 
-//        Imgproc.circle(rgba, Point(100.0, 100.0), 0, Scalar(255.0, 0.0, 0.0, 1.0), 5)
+        Imgproc.Canny(img, img, 127.0, 255.0)
 
-//        Imgproc.cvtColor(rgba, img, Imgproc.COLOR_BGR2GRAY)
+//        Imgproc.GaussianBlur(img, img, Size(5.0, 5.0), 0.0)
+//        Imgproc.Sobel(img, img, -1, 1, 0)
+//        Imgproc.threshold(img, img, 127.0, 255.0, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU)
 
-        Imgproc.GaussianBlur(img, img, Size(5.0, 5.0), 0.0)
-
-        Imgproc.Sobel(img, img, -1, 1, 0)
-
-        Imgproc.threshold(img, img, 127.0, 255.0, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU)
 
         val se = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, Size(32.0, 8.0))//TODO custom values
-
         Imgproc.morphologyEx(img, img, Imgproc.MORPH_CLOSE, se)
 
-//        findContours(image, contours, hierarchy, mode, method)
         val contours = mutableListOf<MatOfPoint>()
         val hierarchy = Mat()
         Imgproc.findContours(img, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE)
         hierarchy.release()
 
         try {
-
-//            val contoursApprox = mutableListOf<MatOfPoint>()
-//            for (poly in contours) {
-//                contoursApprox.add(MatOfPoint(*poly.toArray()))
-//            }
-//            for (i in 0 until contours.size) {
-////                Imgproc.drawContours(img, contoursApprox, i, Scalar(255.0, 0.0, 0.0, 1.0), 2)
-//                Imgproc.drawContours(rgba, contoursApprox, i, Scalar(255.0, 0.0, 0.0, 1.0), 2)
-//            }
-
             for (cnt in contours) {
                 val cntApprox = MatOfPoint2f(*cnt.toArray())
                 val rotatedRect = normalizeRect(Imgproc.minAreaRect(cntApprox))
-
                 if (rotatedRect.size.width < rotatedRect.size.height) continue
-
                 if (rotatedRect.angle < -30 || rotatedRect.angle > 30) continue
-
                 val area = rotatedRect.size.width * rotatedRect.size.height
                 if (area < 1000 || area > 30000) continue //TODO area variable or fixed source img size
 
-                val vertices = arrayOfNulls<Point>(4)
-                rotatedRect.points(vertices)
-                rotatedRect.points(vertices)
-                for (j in 0..3) {
-                    Imgproc.line(rgba, vertices[j], vertices[(j + 1) % 4], Scalar(255.0, 0.0, 0.0, 1.0), 2)
-                }
-            }
+                val rectPoints = arrayOf(Point(0.0, 0.0), Point(0.0, 0.0), Point(0.0, 0.0), Point(0.0, 0.0))
+                rotatedRect.points(rectPoints)
 
+                drawContours(rectPoints)
+                drawText(rectPoints[0], "$area")
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -97,15 +76,25 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 
     private fun normalizeRect(rect: RotatedRect): RotatedRect {
         if (rect.size.height < rect.size.width && rect.angle < -45) {
-            val rect2 = RotatedRect()
+            val rect2 = rect.clone()
             rect2.size.width = rect.size.height
             rect2.size.height = rect.size.width
             rect2.angle = rect.angle + 90
-            rect2.center = rect.center
+//            rect2.center = rect.center
             return rect2
         }
 
         return rect
+    }
+
+    private fun drawContours(points: Array<Point>) {
+        for (j in 0 until points.size) {
+            Imgproc.line(rgba, points[j], points[(j + 1) % points.size], COLOR_RED, 2)
+        }
+    }
+
+    private fun drawText(point: Point, text: String) {
+        Imgproc.putText(rgba, text, point, 0, 0.5, COLOR_YELLOW, 1)
     }
 
     private val mLoaderCallback = object : BaseLoaderCallback(this) {
@@ -173,5 +162,7 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 
     companion object {
         private const val TAG = "OCVSample::Activity"
+        private val COLOR_RED = Scalar(255.0, 0.0, 0.0, 1.0)
+        private val COLOR_YELLOW = Scalar(255.0, 255.0, 0.0, 1.0)
     }
 }
