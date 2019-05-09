@@ -36,65 +36,80 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
         rgba = inputFrame.rgba()
         img = inputFrame.gray()
 
+//        # Converts images from BGR to HSV
+//        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+//        lower_red = np.array([110,50,50])
+//        upper_red = np.array([130,255,255])
+
+//        # Here we are defining range of bluecolor in HSV
+//        # This creates a mask of blue coloured
+//        # objects found in the frame.
+//        mask = cv2.inRange(hsv, lower_red, upper_red)
+
+//        # The bitwise and of the frame and mask is done so
+//        # that only the blue coloured objects are highlighted
+//        # and stored in res
+//        res = cv2.bitwise_and(frame,frame, mask= mask)
+
 //        return img!!
 
 //        img + top hat - black hat
         val tophat = Mat()
         val blackhat = Mat()
         val kernel = Mat.ones(5, 5, CvType.CV_8U)
-        Imgproc.morphologyEx(img, blackhat, Imgproc.MORPH_BLACKHAT, kernel)
         Imgproc.morphologyEx(img, tophat, Imgproc.MORPH_TOPHAT, kernel)
+        Imgproc.morphologyEx(img, blackhat, Imgproc.MORPH_BLACKHAT, kernel)
 
-        Core.add(img!!, blackhat, img)
-        Core.subtract(img!!, tophat, img)
+        Core.add(img!!, tophat, img)
+        Core.subtract(img!!, blackhat, img)
 
-//        return img!!
 //        return blackhat
 //        return tophat
+//        return img!!
 
         Imgproc.GaussianBlur(img, img, Size(5.0, 5.0), 0.0)
 
-        Imgproc.Canny(img, img, 64.0, 255.0)
-//        Imgproc.Sobel(img, img, CvType.CV_8U, 1, 0)
-//        Imgproc.threshold(img, img, 64.0, 255.0, Imgproc.THRESH_BINARY/* + Imgproc.THRESH_OTSU*/)
+//        Imgproc.Canny(img, img, 128.0, 255.0)
+        Imgproc.Sobel(img, img, CvType.CV_8U, 1, 0)
+        Imgproc.threshold(img, img, 192.0, 255.0, Imgproc.THRESH_BINARY/* + Imgproc.THRESH_OTSU*/)
 
 //        return img!!
 
-        val se = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, Size(32.0, 8.0))//TODO custom values
+        val se = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, Size(20.0, 5.0))
         Imgproc.morphologyEx(img, img, Imgproc.MORPH_CLOSE, se)
 
 //        return img!!
 
         val contours = mutableListOf<MatOfPoint>()
         val hierarchy = Mat()
-        Imgproc.findContours(img, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE)
+//        Imgproc.findContours(img, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE)
+        Imgproc.findContours(img, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE)
         hierarchy.release()
 
         try {
             for (cnt in contours) {
                 val cntApprox = MatOfPoint2f(*cnt.toArray())
                 val rotatedRect = normalizeRect(Imgproc.minAreaRect(cntApprox))
-                if (rotatedRect.size.width < rotatedRect.size.height) continue
-                if (rotatedRect.angle < -20 || rotatedRect.angle > 20) continue
+                if (rotatedRect.angle < -15 || rotatedRect.angle > 15) continue
                 val area = rotatedRect.size.width * rotatedRect.size.height
                 val ratio = rotatedRect.size.width / rotatedRect.size.height
                 if (area < 1000) continue
-                if (area > 50000) continue
-                if (ratio < 1) continue
-                if (ratio > 10) continue
+                if (area > 30000) continue
+                if (ratio < 2.5) continue
+                if (ratio > 8) continue
 
                 val rectPoints = arrayOf(Point(0.0, 0.0), Point(0.0, 0.0), Point(0.0, 0.0), Point(0.0, 0.0))
                 rotatedRect.points(rectPoints)
 
-                drawContours(img!!, rectPoints)
-                drawText(img!!, rectPoints[0], "${area.toInt()}")
-                drawText(img!!, rectPoints[1], "${rotatedRect.angle}")
-                drawText(img!!, rectPoints[2], "${ratio.toInt()}")
+//                drawContours(img!!, rectPoints)
+//                drawText(img!!, rectPoints[0], "${area.toInt()}")
+//                drawText(img!!, rectPoints[3], "${rotatedRect.angle.toFloat()}")
+//                drawText(img!!, rectPoints[2], "${ratio.toFloat()}")
 
                 drawContours(rgba!!, rectPoints)
                 drawText(rgba!!, rectPoints[0], "${area.toInt()}")
-                drawText(rgba!!, rectPoints[1], "${rotatedRect.angle.toInt()}")
-                drawText(rgba!!, rectPoints[2], "${ratio.toInt()}")
+                drawText(rgba!!, rectPoints[3], "${rotatedRect.angle.toFloat()}")
+                drawText(rgba!!, rectPoints[2], "${ratio.toFloat()}")
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -173,11 +188,19 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
         private val COLOR_YELLOW = Scalar(255.0, 255.0, 0.0, 1.0)
 
         private fun normalizeRect(rect: RotatedRect): RotatedRect {
-            if (rect.size.height < rect.size.width && rect.angle < -45) {
+            if (rect.size.height > rect.size.width && rect.angle < -45) {
                 val rect2 = rect.clone()
                 rect2.size.width = rect.size.height
                 rect2.size.height = rect.size.width
                 rect2.angle = rect.angle + 90
+//            rect2.center = rect.center
+                return rect2
+            }
+            if (rect.size.height > rect.size.width && rect.angle >= 45) {
+                val rect2 = rect.clone()
+                rect2.size.width = rect.size.height
+                rect2.size.height = rect.size.width
+                rect2.angle = rect.angle - 90
 //            rect2.center = rect.center
                 return rect2
             }
