@@ -36,15 +36,33 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
         rgba = inputFrame.rgba()
         img = inputFrame.gray()
 
-        Imgproc.Canny(img, img, 127.0, 255.0)
+//        return img!!
 
-//        Imgproc.GaussianBlur(img, img, Size(5.0, 5.0), 0.0)
-//        Imgproc.Sobel(img, img, -1, 1, 0)
-//        Imgproc.threshold(img, img, 127.0, 255.0, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU)
+//        img + top hat - black hat
+        val tophat = Mat()
+        val blackhat = Mat()
+        val kernel = Mat.ones(3, 3, CvType.CV_8U)
+        Imgproc.morphologyEx(img, blackhat, Imgproc.MORPH_BLACKHAT, kernel)
+        Imgproc.morphologyEx(img, tophat, Imgproc.MORPH_TOPHAT, kernel)
 
+        Core.add(img!!, blackhat, img)
+        Core.subtract(img!!, tophat, img)
+
+//        return img!!
+//        return blackhat
+//        return tophat
+
+        Imgproc.GaussianBlur(img, img, Size(5.0, 5.0), 0.0)
+        Imgproc.Canny(img, img, 64.0, 255.0)
+//        Imgproc.Sobel(img, img, CvType.CV_8U, 1, 0)
+//        Imgproc.threshold(img, img, 64.0, 255.0, Imgproc.THRESH_BINARY/* + Imgproc.THRESH_OTSU*/)
+
+//        return img!!
 
         val se = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, Size(32.0, 8.0))//TODO custom values
         Imgproc.morphologyEx(img, img, Imgproc.MORPH_CLOSE, se)
+
+//        return img!!
 
         val contours = mutableListOf<MatOfPoint>()
         val hierarchy = Mat()
@@ -56,45 +74,28 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
                 val cntApprox = MatOfPoint2f(*cnt.toArray())
                 val rotatedRect = normalizeRect(Imgproc.minAreaRect(cntApprox))
                 if (rotatedRect.size.width < rotatedRect.size.height) continue
-                if (rotatedRect.angle < -30 || rotatedRect.angle > 30) continue
+                if (rotatedRect.angle < -20 || rotatedRect.angle > 20) continue
                 val area = rotatedRect.size.width * rotatedRect.size.height
-                if (area < 1000 || area > 30000) continue //TODO area variable or fixed source img size
+                val ratio = rotatedRect.size.width / rotatedRect.size.height
+                if (area < 1000) continue
+                if (area > 50000) continue
+                if (ratio < 1) continue
+                if (ratio > 10) continue
 
                 val rectPoints = arrayOf(Point(0.0, 0.0), Point(0.0, 0.0), Point(0.0, 0.0), Point(0.0, 0.0))
                 rotatedRect.points(rectPoints)
 
-                drawContours(rectPoints)
-                drawText(rectPoints[0], "$area")
+                drawContours(rgba!!, rectPoints)
+                drawText(rgba!!, rectPoints[0], "$area")
+                drawText(rgba!!, rectPoints[1], "${rotatedRect.angle}")
+                drawText(rgba!!, rectPoints[2], "$ratio")
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-//        return img
+//        return img!!
         return rgba!!
-    }
-
-    private fun normalizeRect(rect: RotatedRect): RotatedRect {
-        if (rect.size.height < rect.size.width && rect.angle < -45) {
-            val rect2 = rect.clone()
-            rect2.size.width = rect.size.height
-            rect2.size.height = rect.size.width
-            rect2.angle = rect.angle + 90
-//            rect2.center = rect.center
-            return rect2
-        }
-
-        return rect
-    }
-
-    private fun drawContours(points: Array<Point>) {
-        for (j in 0 until points.size) {
-            Imgproc.line(rgba, points[j], points[(j + 1) % points.size], COLOR_RED, 2)
-        }
-    }
-
-    private fun drawText(point: Point, text: String) {
-        Imgproc.putText(rgba, text, point, 0, 0.5, COLOR_YELLOW, 1)
     }
 
     private val mLoaderCallback = object : BaseLoaderCallback(this) {
@@ -164,5 +165,28 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
         private const val TAG = "OCVSample::Activity"
         private val COLOR_RED = Scalar(255.0, 0.0, 0.0, 1.0)
         private val COLOR_YELLOW = Scalar(255.0, 255.0, 0.0, 1.0)
+
+        private fun normalizeRect(rect: RotatedRect): RotatedRect {
+            if (rect.size.height < rect.size.width && rect.angle < -45) {
+                val rect2 = rect.clone()
+                rect2.size.width = rect.size.height
+                rect2.size.height = rect.size.width
+                rect2.angle = rect.angle + 90
+//            rect2.center = rect.center
+                return rect2
+            }
+
+            return rect
+        }
+
+        private fun drawContours(dst: Mat, points: Array<Point>) {
+            for (j in 0 until points.size) {
+                Imgproc.line(dst, points[j], points[(j + 1) % points.size], COLOR_RED, 2)
+            }
+        }
+
+        private fun drawText(dst: Mat, point: Point, text: String) {
+            Imgproc.putText(dst, text, point, 0, 0.5, COLOR_YELLOW, 1)
+        }
     }
 }
