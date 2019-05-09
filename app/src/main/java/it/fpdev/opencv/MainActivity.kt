@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 //        img + top hat - black hat
         val tophat = Mat()
         val blackhat = Mat()
-        val kernel = Mat.ones(3, 3, CvType.CV_8U)
+        val kernel = Mat.ones(5, 5, CvType.CV_8U)
         Imgproc.morphologyEx(img, blackhat, Imgproc.MORPH_BLACKHAT, kernel)
         Imgproc.morphologyEx(img, tophat, Imgproc.MORPH_TOPHAT, kernel)
 
@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 //        return tophat
 
         Imgproc.GaussianBlur(img, img, Size(5.0, 5.0), 0.0)
+
         Imgproc.Canny(img, img, 64.0, 255.0)
 //        Imgproc.Sobel(img, img, CvType.CV_8U, 1, 0)
 //        Imgproc.threshold(img, img, 64.0, 255.0, Imgproc.THRESH_BINARY/* + Imgproc.THRESH_OTSU*/)
@@ -85,10 +86,15 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
                 val rectPoints = arrayOf(Point(0.0, 0.0), Point(0.0, 0.0), Point(0.0, 0.0), Point(0.0, 0.0))
                 rotatedRect.points(rectPoints)
 
+                drawContours(img!!, rectPoints)
+                drawText(img!!, rectPoints[0], "${area.toInt()}")
+                drawText(img!!, rectPoints[1], "${rotatedRect.angle}")
+                drawText(img!!, rectPoints[2], "${ratio.toInt()}")
+
                 drawContours(rgba!!, rectPoints)
-                drawText(rgba!!, rectPoints[0], "$area")
-                drawText(rgba!!, rectPoints[1], "${rotatedRect.angle}")
-                drawText(rgba!!, rectPoints[2], "$ratio")
+                drawText(rgba!!, rectPoints[0], "${area.toInt()}")
+                drawText(rgba!!, rectPoints[1], "${rotatedRect.angle.toInt()}")
+                drawText(rgba!!, rectPoints[2], "${ratio.toInt()}")
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -181,12 +187,12 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 
         private fun drawContours(dst: Mat, points: Array<Point>) {
             for (j in 0 until points.size) {
-                Imgproc.line(dst, points[j], points[(j + 1) % points.size], COLOR_RED, 2)
+                Imgproc.line(dst, points[j], points[(j + 1) % points.size], COLOR_RED, 1)
             }
         }
 
         private fun drawText(dst: Mat, point: Point, text: String) {
-            Imgproc.putText(dst, text, point, 0, 0.5, COLOR_YELLOW, 1)
+            Imgproc.putText(dst, text, point, Core.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_YELLOW, 1)
         }
     }
 }
